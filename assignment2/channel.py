@@ -60,11 +60,3 @@ class Channel:
             return self.delivered_ack.get_nowait()
         except:
             return None
-
-channel = Channel(0.5, 0.5, 0.3)
-channel.transmit("1:Hello:26")
-channel.transmit("2:Hello:28")
-channel.transmit("3:Hello:30")
-channel.transmit("4:Hello:21")
-channel.transmit("5:Hello:20")
-print(channel.data_queue)

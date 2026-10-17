@@ -1,5 +1,5 @@
-def get_checksum(data : str, seqnum : int):
-    content = data.encode() + str(seqnum).encode()
+def get_checksum(data : str, seqnum : int, packet_type : str):
+    content = data.encode() + str(seqnum).encode() + packet_type.encode()
     checksum = 0
     for i in range(0, len(content), 2):
         if(i + 1 < len(content)):
@@ -11,23 +11,24 @@ def get_checksum(data : str, seqnum : int):
 
     return (~checksum & 0xFFFF)
 
-def verify_checksum(data : str, seqnum : int, checksum : int):
-    return get_checksum(data, seqnum) == checksum
+def verify_checksum(data : str, seqnum : int, checksum : int, packet_type: str):
+    return get_checksum(data, seqnum, packet_type) == checksum
 
-def make_packet(seqnum : int, data : str):
-    checksum = get_checksum(data, seqnum)
-    return f"{seqnum}:{data}:{checksum}"
+def make_packet(seqnum : int, data : str, packet_type: str):
+    checksum = get_checksum(data, seqnum, packet_type)
+    return f"{packet_type}:{seqnum}:{data}:{checksum}"
 
 def parse_packet(packet : str):
     parts = packet.split(":")
 
-    if(len(parts) != 3):
+    if(len(parts) != 4):
         raise ValueError("Malformed packet")
 
-    seqnum = int(parts[0])
-    data = parts[1]
-    checksum = int(parts[2])
+    packet_type = parts[0]
+    seqnum = int(parts[1])
+    data = parts[2]
+    checksum = int(parts[3])
 
-    is_valid = verify_checksum(data, seqnum, checksum)
+    is_valid = verify_checksum(data, seqnum, checksum, packet_type)
 
-    return {seqnum, data, checksum, is_valid}
+    return {"type": packet_type, "seqnum": seqnum, "data": data, "checksum": checksum, "is_valid": is_valid}
