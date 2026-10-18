@@ -1,5 +1,5 @@
 from channel import Channel
-from packet import make_packet, parse_packet
+from packet import make_packet, parse_packet, generate_packets
 import time
 import threading
 
@@ -7,19 +7,12 @@ class GBNSender:
     def __init__(self, channel: Channel, total_packets: int, window_size: int, max_time: float, sequence_bits: int):
         self.channel = channel
         self.seq_mod = 2 ** sequence_bits
-        self.packets = self.generate_packets(total_packets)
+        self.packets = generate_packets(total_packets, self.seq_mod)
         self.base = 0
         self.next_seq = 0
         self.window_size = window_size
         self.max_time = max_time
         self.last_timer = 0.0
-
-    def generate_packets(self, n: int):
-        packets = []
-        for i in range(n):
-            packets.append(make_packet(i % self.seq_mod, f"Message From Packet {i}", "DATA"))
-
-        return packets
 
     def send_packets(self):
         while (self.next_seq - self.base < self.window_size and self.next_seq < len(self.packets)):
@@ -125,7 +118,7 @@ class GBNReceiver:
         seqnum = packet_obj["seqnum"]
 
         if seqnum == self.expected_seq:
-            print(f"Receiver: Packet {seqnum} received successfully!")
+            print(f"Receiver: Packet {seqnum} received successfully! Message: {packet_obj["data"]}")
 
             self.expected_seq = (self.expected_seq + 1) % self.seq_mod
 

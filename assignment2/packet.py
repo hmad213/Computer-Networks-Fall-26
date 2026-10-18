@@ -32,3 +32,10 @@ def parse_packet(packet : str):
     is_valid = verify_checksum(data, seqnum, checksum, packet_type)
 
     return {"type": packet_type, "seqnum": seqnum, "data": data, "checksum": checksum, "is_valid": is_valid}
+
+def generate_packets(n: int, seq_mod):
+    packets = []
+    for i in range(n):
+        packets.append(make_packet(i % seq_mod, f"Hi From Packet {i}", "DATA"))
+
+    return packets
