@@ -107,6 +107,7 @@ class SRReceiver:
         self.window_size = window_size
         self.base = 0
         self.buffer = {}
+        self.delivered_count = 0
 
     def receive_packet(self):
         packet = self.channel.receive_packet()
@@ -137,6 +138,7 @@ class SRReceiver:
             while self.base % self.seq_mod in self.buffer:
                 key = self.base % self.seq_mod
                 print(f"Receiver: Packet {self.base % self.seq_mod} delivered! Message: {self.buffer[key]}")
+                self.delivered_count += 1
                 self.buffer.pop(key)
                 self.base += 1
 
@@ -216,6 +218,8 @@ def run_sr(total_packets, window_size, sequence_bits, loss_prob, corruption_prob
         clock_thread.join()
 
     print("SR simulation finished!")
+
+    return {"transmitted": channel.transmission_count, "delivered": receiver.delivered_count, "ticks": channel.current_time}
 
 
 if __name__ == "__main__":

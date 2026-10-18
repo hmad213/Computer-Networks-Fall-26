@@ -18,6 +18,7 @@ class Channel:
         self.counter = itertools.count()
         self.last_arrival = {True: 0.0, False: 0.0}
         self.lock = threading.Lock()
+        self.transmission_count = 0
 
     def tick(self):
         with self.lock:
@@ -32,14 +33,14 @@ class Channel:
                 self.delivered_ack.put(pkt)
 
     def transmit(self, packet: str, is_data: bool = True):
+        if is_data:
+            self.transmission_count += 1
         parts = packet.split(":")
 
         if random.random() < self.loss_prob:
-            print(f"Packet {parts[1]} lost!")
             return
 
         if random.random() < self.corruption_prob:
-            print(f"Packet {parts[1]} corrupted!")
             parts[3] = str(int(parts[3]) + random.randint(1, 5))
 
             packet = ":".join(parts)
@@ -49,7 +50,6 @@ class Channel:
 
             if random.random() < self.delay_prob:
                 arrival_time += random.randint(1, 3)  # Additional delay of 1 to 3 ticks
-                print(f"Packet {parts[1]} delayed!")
 
             arrival_time = max(arrival_time, self.last_arrival[is_data])
             self.last_arrival[is_data] = arrival_time

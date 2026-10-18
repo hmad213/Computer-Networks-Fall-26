@@ -98,6 +98,7 @@ class GBNReceiver:
         self.expected_seq = 0
         self.last_ack = None
         self.stop_event = event
+        self.delivered_count = 0
 
     def receive_packet(self):
         packet = self.channel.receive_packet()
@@ -121,6 +122,7 @@ class GBNReceiver:
             print(f"Receiver: Packet {seqnum} received successfully! Message: {packet_obj["data"]}")
 
             self.expected_seq = (self.expected_seq + 1) % self.seq_mod
+            self.delivered_count += 1
 
             return True, seqnum
 
@@ -207,6 +209,8 @@ def run_gbn(total_packets, window_size, sequence_bits, loss_prob, corruption_pro
         clock_thread.join()
 
     print("GBN simulation finished!")
+
+    return {"transmitted": channel.transmission_count, "delivered": receiver.delivered_count, "ticks": channel.current_time}
 
 if __name__ == "__main__":
     run_gbn(200, 4, 3, 0.05, 0.05, 0.1, 2)
