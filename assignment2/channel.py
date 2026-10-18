@@ -1,6 +1,9 @@
 import random
 import heapq
-from queue import Queue
+import itertools
+import threading
+from queue import Queue, Empty
+
 
 class Channel:
     def __init__(self, delay_prob: float, corruption_prob: float, loss_prob: float):
@@ -12,52 +15,60 @@ class Channel:
         self.delivered_data = Queue()
         self.delivered_ack = Queue()
         self.current_time = 0.0
-        self.counter = 0
+        self.counter = itertools.count()
+        self.last_arrival = {True: 0.0, False: 0.0}
+        self.lock = threading.Lock()
 
     def tick(self):
-        self.current_time += 1
+        with self.lock:
+            self.current_time += 1
 
-        while self.data_queue and self.data_queue[0][0] <= self.current_time:
-            self.delivered_data.put(self.data_queue[0][2])
-            heapq.heappop(self.data_queue)
+            while self.data_queue and self.data_queue[0][0] <= self.current_time:
+                _, _, pkt = heapq.heappop(self.data_queue)
+                self.delivered_data.put(pkt)
 
-        while self.ack_queue and self.ack_queue[0][0] <= self.current_time:
-            self.delivered_ack.put(self.ack_queue[0][2])
-            heapq.heappop(self.ack_queue)
-
+            while self.ack_queue and self.ack_queue[0][0] <= self.current_time:
+                _, _, pkt = heapq.heappop(self.ack_queue)
+                self.delivered_ack.put(pkt)
 
     def transmit(self, packet: str, is_data: bool = True):
         parts = packet.split(":")
 
-        if(random.random() < self.loss_prob):
+        if random.random() < self.loss_prob:
             print(f"Packet {parts[1]} lost!")
             return
 
-        if(random.random() < self.corruption_prob):
+        if random.random() < self.corruption_prob:
             print(f"Packet {parts[1]} corrupted!")
             parts[3] = str(int(parts[3]) + random.randint(1, 5))
 
             packet = ":".join(parts)
 
-        arrival_time = self.current_time + 1.0  # Adding transmission delay
+        with self.lock:
+            arrival_time = self.current_time + 1.0  # Adding transmission delay
 
-        if(random.random() < self.delay_prob):
-            arrival_time += random.randint(1, 3)    # Assuming additional delay of 1 to 3 seconds
-            print(f"Packet {parts[1]} delayed!")
+            if random.random() < self.delay_prob:
+                arrival_time += random.randint(1, 3)  # Additional delay of 1 to 3 ticks
+                print(f"Packet {parts[1]} delayed!")
 
-        if(is_data):
-            heapq.heappush(self.data_queue, (arrival_time, self.counter, packet))
-        else:
-            heapq.heappush(self.ack_queue, (arrival_time, self.counter, packet))
+            arrival_time = max(arrival_time, self.last_arrival[is_data])
+            self.last_arrival[is_data] = arrival_time
+
+            entry = (arrival_time, next(self.counter), packet)
+
+            if is_data:
+                heapq.heappush(self.data_queue, entry)
+            else:
+                heapq.heappush(self.ack_queue, entry)
 
     def receive_packet(self):
         try:
             return self.delivered_data.get_nowait()
-        except:
+        except Empty:
             return None
 
     def receive_ack(self):
         try:
             return self.delivered_ack.get_nowait()
-        except:
+        except Empty:
             return None

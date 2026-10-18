@@ -216,4 +216,4 @@ def run_gbn(total_packets, window_size, sequence_bits, loss_prob, corruption_pro
     print("GBN simulation finished!")
 
 if __name__ == "__main__":
-    run_gbn(200, 4, 3, 0.1, 0, 0, 2)
+    run_gbn(200, 4, 3, 0.05, 0.05, 0.1, 2)
