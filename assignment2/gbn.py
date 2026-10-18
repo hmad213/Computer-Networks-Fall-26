@@ -4,21 +4,20 @@ import time
 import threading
 
 class GBNSender:
-    def __init__(self, channel: Channel, total_packets: int, window_size: int, max_time: float):
+    def __init__(self, channel: Channel, total_packets: int, window_size: int, max_time: float, sequence_bits: int):
         self.channel = channel
+        self.seq_mod = 2 ** sequence_bits
         self.packets = self.generate_packets(total_packets)
         self.base = 0
         self.next_seq = 0
         self.window_size = window_size
         self.max_time = max_time
         self.last_timer = 0.0
-        self.seq_mod = pow(2, 20)
-        
 
     def generate_packets(self, n: int):
         packets = []
         for i in range(n):
-            packets.append(make_packet(i, f"Message From Packet {i}", "DATA"))
+            packets.append(make_packet(i % self.seq_mod, f"Message From Packet {i}", "DATA"))
 
         return packets
 
@@ -29,7 +28,7 @@ class GBNSender:
 
             packet = self.packets[self.next_seq]
             self.channel.transmit(packet, is_data=True)
-            print(f"Sender: Packet {self.next_seq} sent!")
+            print(f"Sender: Packet {self.next_seq % self.seq_mod} sent!")
 
             self.next_seq += 1
 
@@ -77,14 +76,14 @@ class GBNSender:
         if self.base == self.next_seq:
             return
 
-        if self.last_timer - self.channel.current_time > self.max_time:
-            print(f"Sender: Packet {self.base} timed out")
+        if self.last_timer is not None and self.channel.current_time - self.last_timer >= self.max_time:
+            print(f"Sender: Packet {self.base % self.seq_mod} timed out")
 
             for i in range(self.base, self.next_seq):
                 self.channel.transmit(self.packets[i], True)
-                print(f"Sender: Retransmitting packet {i}")
+                print(f"Sender: Retransmitting packet {i % self.seq_mod}")
 
-        self.last_timer = self.channel.current_time
+            self.last_timer = self.channel.current_time
 
     def run(self):
         while self.base < len(self.packets):
@@ -100,9 +99,9 @@ class GBNSender:
         print("Sender: All packets acknowledged!")
 
 class GBNReceiver:
-    def __init__(self, channel: Channel, event):
+    def __init__(self, channel: Channel, event, sequence_bits: int):
         self.channel = channel
-        self.seq_mod = pow(2, 20)
+        self.seq_mod = 2 ** sequence_bits
         self.expected_seq = 0
         self.last_ack = None
         self.stop_event = event
@@ -165,22 +164,25 @@ class GBNReceiver:
             time.sleep(0.01)
 
         print("Receiver: Simulation finished.")
-        
 
-def run_gbn(total_packets, window_size, loss_prob, corruption_prob, delay_prob, timeout_duration):
 
-    seq_mod = pow(2, 20)
+def run_gbn(total_packets, window_size, sequence_bits, loss_prob, corruption_prob, delay_prob, timeout_duration):
+
+    seq_mod = 2 ** sequence_bits
+
+    if sequence_bits < 1:
+        raise ValueError("Sequence bits must be at least 1")
 
     if window_size < 1 or window_size > seq_mod - 1:
-        raise ValueError("Window size must be between 1 and 2^seq_bits - 1")
+        raise ValueError(f"Window size must be between 1 and {seq_mod - 1}")
 
     channel = Channel(delay_prob, corruption_prob, loss_prob)
 
     stop_event = threading.Event()
 
-    sender = GBNSender(channel, total_packets, window_size, timeout_duration)
+    sender = GBNSender(channel, total_packets, window_size, timeout_duration, sequence_bits)
 
-    receiver = GBNReceiver(channel, stop_event)
+    receiver = GBNReceiver(channel, stop_event, sequence_bits)
 
     sender_thread = threading.Thread(target=sender.run)
     receiver_thread = threading.Thread(target=receiver.run)
@@ -214,4 +216,4 @@ def run_gbn(total_packets, window_size, loss_prob, corruption_prob, delay_prob, 
     print("GBN simulation finished!")
 
 if __name__ == "__main__":
-    run_gbn(200, 4, 0, 0, 0, 2)
+    run_gbn(200, 4, 3, 0.1, 0, 0, 2)

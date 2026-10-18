@@ -12,16 +12,17 @@ class Channel:
         self.delivered_data = Queue()
         self.delivered_ack = Queue()
         self.current_time = 0.0
+        self.counter = 0
 
     def tick(self):
         self.current_time += 1
 
         while self.data_queue and self.data_queue[0][0] <= self.current_time:
-            self.delivered_data.put(self.data_queue[0][1])
+            self.delivered_data.put(self.data_queue[0][2])
             heapq.heappop(self.data_queue)
 
         while self.ack_queue and self.ack_queue[0][0] <= self.current_time:
-            self.delivered_ack.put(self.ack_queue[0][1])
+            self.delivered_ack.put(self.ack_queue[0][2])
             heapq.heappop(self.ack_queue)
 
 
@@ -29,12 +30,12 @@ class Channel:
         parts = packet.split(":")
 
         if(random.random() < self.loss_prob):
-            print(f"Packet {parts[0]} lost!")
+            print(f"Packet {parts[1]} lost!")
             return
 
         if(random.random() < self.corruption_prob):
-            print(f"Packet {parts[0]} corrupted!")
-            parts[1] = chr(ord(parts[1][0]) + random.randint(1, 5)) + parts[1][1:]
+            print(f"Packet {parts[1]} corrupted!")
+            parts[3] = str(int(parts[3]) + random.randint(1, 5))
 
             packet = ":".join(parts)
 
@@ -42,12 +43,12 @@ class Channel:
 
         if(random.random() < self.delay_prob):
             arrival_time += random.randint(1, 3)    # Assuming additional delay of 1 to 3 seconds
-            print(f"Packet {parts[0]} delayed!")
+            print(f"Packet {parts[1]} delayed!")
 
         if(is_data):
-            heapq.heappush(self.data_queue, (arrival_time, packet))
+            heapq.heappush(self.data_queue, (arrival_time, self.counter, packet))
         else:
-            heapq.heappush(self.ack_queue, (arrival_time, packet))
+            heapq.heappush(self.ack_queue, (arrival_time, self.counter, packet))
 
     def receive_packet(self):
         try:
