@@ -63,3 +63,22 @@ for name in SCENARIOS:
         r = results[(name, proto)]
         print(f"{name:<15}{proto:<10}{r['transmitted']:>12.1f}{r['retransmissions']:>10.1f}"
               f"{r['delivered']:>11.1f}{r['ticks']:>8.1f}{r['seconds']:>10.1f}{r['throughput']:>11.2f}")
+
+names = list(SCENARIOS)
+x = list(range(len(names)))
+width = 0.35
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+
+for ax, key, title in ((axes[0], "retransmissions", "Retransmissions"),
+                       (axes[1], "ticks", "Completion time (channel ticks)")):
+    ax.bar([i - width / 2 for i in x], [results[(n, "GBN")][key] for n in names], width, label="GBN")
+    ax.bar([i + width / 2 for i in x], [results[(n, "SR")][key] for n in names], width, label="SR")
+    ax.set_xticks(x)
+    ax.set_xticklabels(names)
+    ax.set_title(title)
+    ax.legend()
+
+plt.tight_layout()
+plt.savefig("results.png", dpi=150)
+print("\nSaved graph to results.png")
